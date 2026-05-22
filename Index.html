@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>内部監査 くじ引きシステム</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f5f4f0;--surf:#fff;--surf2:#f0efe9;--bdr:#d8d6ce;--bdr2:#c0bdb2;
+  --tx:#1a1916;--tx2:#5c5a52;--tx3:#9a9890;
+  --grn:#1a472a;--grn-l:#e8f0ea;--grn-t:#1a472a;
+  --blu:#1b4d8a;--blu-l:#e6edf7;
+  --red:#8a1b1b;--red-l:#f7e6e6;
+  --gld:#9a7800;--gld-l:#fdf3e0;
+  --mono:'IBM Plex Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+  --r:6px;--rl:10px;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;min-height:100vh;}
+
+/* ── ADMIN LAYOUT ── */
+#admin-view{display:flex;flex-direction:column;min-height:100vh;}
+.aheader{background:var(--grn);color:#fff;padding:11px 22px;display:flex;align-items:center;gap:14px;}
+.aheader .logo{font-family:var(--mono);font-size:11px;color:#90c8a0;letter-spacing:.1em;}
+.aheader h1{font-size:14px;font-weight:500;}
+.aheader .hright{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.abody{display:flex;flex:1;}
+.sidebar{width:196px;background:var(--surf);border-right:1px solid var(--bdr);padding:10px 0;flex-shrink:0;}
+.nv{display:flex;align-items:center;gap:8px;padding:9px 16px;font-size:12.5px;cursor:pointer;color:var(--tx2);border-left:3px solid transparent;transition:all .15s;}
+.nv:hover{background:var(--surf2);color:var(--tx);}
+.nv.on{background:var(--grn-l);color:var(--grn);border-left-color:var(--grn);font-weight:500;}
+.nvsep{height:1px;background:var(--bdr);margin:6px 12px;}
+.main{flex:1;padding:22px;overflow-y:auto;}
+.ptitle{font-size:17px;font-weight:700;margin-bottom:3px;}
+.psub{font-size:11px;color:var(--tx3);margin-bottom:18px;}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rl);padding:16px 18px;margin-bottom:12px;}
+.clabel{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);margin-bottom:10px;}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+input,select{font-family:var(--sans);font-size:13px;padding:6px 10px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--surf);color:var(--tx);outline:none;transition:border-color .15s;}
+input:focus,select:focus{border-color:var(--grn);}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+input[type=number]{width:76px;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;font-family:var(--sans);font-size:12px;font-weight:500;border:1px solid var(--bdr2);border-radius:var(--r);background:var(--surf);color:var(--tx);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn:hover{background:var(--surf2);}
+.btn:active{transform:scale(.97);}
+.btn-grn{background:var(--grn);color:#fff;border-color:var(--grn);}
+.btn-grn:hover{background:#153820;}
+.btn-blu{background:var(--blu);color:#fff;border-color:var(--blu);}
+.btn-blu:hover{background:#163e70;}
+.btn-red{color:var(--red);border-color:#d0a0a0;}
+.btn-red:hover{background:var(--red-l);}
+.btn-gld{background:var(--gld);color:#fff;border-color:var(--gld);}
+.btn-gld:hover{background:#7a5e00;}
+.btn-lg{padding:10px 20px;font-size:13px;}
+.badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-family:var(--mono);}
+.bg-grn{background:var(--grn-l);color:var(--grn);}
+.bg-gry{background:var(--surf2);color:var(--tx3);}
+.bg-blu{background:var(--blu-l);color:var(--blu);}
+.bg-gld{background:var(--gld-l);color:var(--gld);}
+.item{display:flex;align-items:center;gap:9px;padding:9px 13px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);margin-bottom:5px;transition:border-color .15s;}
+.item:hover{border-color:var(--bdr2);}
+.ib{flex:1;min-width:0;}
+.in{font-size:13px;font-weight:500;}
+.is{font-size:11px;color:var(--tx3);}
+.item.dim{opacity:.45;}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.tbl th{padding:7px 11px;text-align:left;font-weight:600;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--tx2);background:var(--surf2);border-bottom:1px solid var(--bdr);}
+.tbl td{padding:8px 11px;border-bottom:1px solid var(--bdr);}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--surf2);}
+.th{font-weight:500;}.tb{color:var(--blu);font-weight:600;}.tm{color:var(--tx3);font-size:11px;}
+.alert{padding:9px 13px;border-radius:var(--r);font-size:12px;margin-bottom:12px;}
+.aw{background:var(--gld-l);color:var(--gld);border:1px solid #ddc060;}
+.ae{background:var(--red-l);color:var(--red);border:1px solid #d0a0a0;}
+.ao{background:var(--grn-l);color:var(--grn);border:1px solid #80b080;}
+.sep{height:1px;background:var(--bdr);margin:14px 0;}
+.empty{text-align:center;padding:32px 20px;color:var(--tx3);font-size:13px;}
+
+/* ── LOADING ── */
+#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:9999;align-items:center;justify-content:center;}
+#loading.on{display:flex;}
+.spin{width:38px;height:38px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+
+/* ── CEREMONY ── */
+#cer{display:none;min-height:100vh;background:#060f08;color:#ede4c8;font-family:var(--sans);flex-direction:column;}
+#cer.on{display:flex;}
+.cheader{background:#080f0a;border-bottom:1px solid #183020;padding:14px 28px;display:flex;align-items:center;gap:16px;}
+.clogo{font-family:var(--mono);font-size:10px;color:#3a6a48;letter-spacing:.12em;}
+.ctitle{font-size:15px;font-weight:700;}
+.cperiod{font-family:var(--mono);font-size:13px;color:#b8a858;margin-left:auto;}
+.cbody{flex:1;padding:28px;overflow-y:auto;}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+
+/* Lottery cards */
+.lcard{background:#0a1a0d;border:1px solid #183020;border-radius:10px;overflow:hidden;transition:border-color .3s,box-shadow .3s;}
+.lcard.cur{border-color:#b8a858;box-shadow:0 0 18px rgba(184,168,88,.3);}
+.lcard.done{border-color:#264830;background:#0c2014;}
+.lcardtop{padding:14px;border-bottom:1px solid #183020;}
+.lcdept{font-size:13.5px;font-weight:700;color:#ede4c8;}
+.lcstat{font-size:10px;font-family:var(--mono);margin-top:2px;}
+.lcard .lcstat{color:#2e5040;}
+.lcard.cur .lcstat{color:#b8a858;}
+.lcard.done .lcstat{color:#50a860;}
+.lcardbody{padding:14px;}
+.dbtn{width:100%;padding:12px;font-size:15px;font-weight:700;background:linear-gradient(135deg,#c0a840,#8a7820);color:#050d06;border:none;border-radius:7px;cursor:pointer;transition:all .2s;font-family:var(--sans);letter-spacing:.04em;}
+.dbtn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(192,168,64,.45);}
+.dbtn:active{transform:scale(.97);}
+.rv{text-align:center;}
+.rvtgt{font-size:20px;font-weight:900;color:#c0a840;margin-bottom:10px;letter-spacing:.02em;}
+.rvlbl{font-size:11px;color:#3a6048;margin-bottom:6px;font-family:var(--mono);}
+.rvteam{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;}
+.rvmem{background:#0e3018;border:1px solid #255030;border-radius:20px;padding:3px 10px;font-size:11px;color:#80c890;}
+.rvmdept{opacity:.6;font-size:10px;}
+
+/* Slot modal */
+#slot{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:1000;align-items:center;justify-content:center;flex-direction:column;}
+#slot.on{display:flex;}
+.sbox{background:#080f0a;border:2px solid #b8a858;border-radius:14px;padding:36px 52px;text-align:center;min-width:380px;max-width:90vw;}
+.sforwho{font-size:11px;font-family:var(--mono);color:#3a6048;margin-bottom:14px;letter-spacing:.06em;}
+.sdrum{background:#030805;border:1px solid #183020;border-radius:7px;padding:18px 36px;margin-bottom:20px;min-height:84px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+.sdrum::before,.sdrum::after{content:'';position:absolute;left:0;right:0;height:24px;z-index:1;}
+.sdrum::before{top:0;background:linear-gradient(#030805,transparent);}
+.sdrum::after{bottom:0;background:linear-gradient(transparent,#030805);}
+.stext{font-size:30px;font-weight:900;color:#ede4c8;font-family:var(--sans);position:relative;z-index:2;transition:none;}
+.stext.final{color:#c0a840;animation:spop .55s cubic-bezier(.22,1,.36,1);}
+@keyframes spop{0%{transform:scale(1.7);opacity:0;}60%{transform:scale(.94);}100%{transform:scale(1);opacity:1;}}
+.ssub{font-size:11px;color:#3a6048;font-family:var(--mono);margin-bottom:0;}
+.steam{margin-top:18px;text-align:left;}
+.steamlbl{font-size:10px;color:#3a8050;font-family:var(--mono);letter-spacing:.08em;margin-bottom:8px;text-transform:uppercase;}
+.smem{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#0e2e18;border:1px solid #1e4828;border-radius:7px;margin-bottom:5px;opacity:0;transform:translateX(-16px);transition:all .35s;}
+.smem.on{opacity:1;transform:none;}
+.smname{font-size:14px;font-weight:700;color:#b0e0b8;}
+.smdept{font-size:11px;color:#3a6048;}
+.sconfirm{margin-top:20px;}
+
+/* Status bar */
+.cbar{background:#080f0a;border-top:1px solid #183020;padding:12px 28px;display:flex;align-items:center;gap:16px;font-size:12px;}
+.cprog{font-family:var(--mono);color:#3a6048;}
+
+/* Confetti */
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:1001;}
+
+/* Toast */
+.toast{position:fixed;bottom:22px;right:22px;z-index:9998;padding:9px 16px;border-radius:8px;font-size:12.5px;font-weight:500;animation:tfa .25s ease;color:#fff;}
+@keyframes tfa{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spin"></div></div>
+<canvas id="confetti"></canvas>
+
+<!-- ════ ADMIN VIEW ════ -->
+<div id="admin-view">
+  <header class="aheader">
+    <span class="logo">AUDIT/SYS v2</span>
+    <h1>内部監査 くじ引きシステム</h1>
+    <div class="hright">
+      <button class="btn btn-gld btn-lg" onclick="APP.startCeremony()">🎯 抽選セレモニー開始</button>
+    </div>
+  </header>
+  <div class="abody">
+    <nav class="sidebar" id="sidebar">
+      <div class="nv on" data-tab="depts" onclick="APP.tab('depts')"><span>🏭</span>部署・工場管理</div>
+      <div class="nv" data-tab="auds" onclick="APP.tab('auds')"><span>👥</span>監査員管理</div>
+      <div class="nvsep"></div>
+      <div class="nv" data-tab="prev" onclick="APP.tab('prev')"><span>📋</span>前回記録入力</div>
+      <div class="nv" data-tab="prep" onclick="APP.tab('prep')"><span>🎲</span>くじ引き設定</div>
+      <div class="nvsep"></div>
+      <div class="nv" data-tab="hist" onclick="APP.tab('hist')"><span>📁</span>結果履歴</div>
+    </nav>
+    <main class="main" id="main"></main>
+  </div>
+</div>
+
+<!-- ════ CEREMONY VIEW ════ -->
+<div id="cer">
+  <div class="cheader">
+    <span class="clogo">AUDIT LOTTERY</span>
+    <span class="ctitle">内部監査 抽選セレモニー</span>
+    <span class="cperiod" id="cperiod"></span>
+    <button class="btn btn-red" onclick="APP.exitCer()" style="margin-left:10px;">← 管理画面へ</button>
+  </div>
+  <div class="cbody"><div class="cgrid" id="cgrid"></div></div>
+  <div class="cbar">
+    <span class="cprog" id="cprog"></span>
+    <button class="btn btn-grn" id="csavebtn" onclick="APP.saveCer()" style="display:none;margin-left:auto;">💾 結果を保存</button>
+  </div>
+</div>
+
+<!-- ════ SLOT MODAL ════ -->
+<div id="slot">
+  <div class="sbox">
+    <div class="sforwho" id="sforwho"></div>
+    <div class="sdrum"><div class="stext" id="stext">？？？</div></div>
+    <div class="ssub" id="ssub">ボタンを押してください</div>
+    <div class="steam" id="steam" style="display:none">
+      <div class="steamlbl">担当チーム</div>
+      <div id="smembers"></div>
+    </div>
+    <div class="sconfirm" id="sconfirm" style="display:none">
+      <button class="dbtn" onclick="APP.confirmReveal()">✓ 確認しました</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════ STATE ════════════
+const S = {
+  tab: 'depts',
+  data: { departments:[], auditors:[], records:[], results:[] },
+  lottery: { year: new Date().getFullYear(), half:'下半期', teamSize:3, assignments:null, revealed:new Set() },
+  prevYear: new Date().getFullYear(), prevHalf:'上半期', prevMap: {},
+  curTeamId: null,
+};
+
+// ════════════ GAS ════════════
+function gas(fn, ...args){
+  return new Promise((res,rej)=>{
+    let r = google.script.run.withSuccessHandler(v=>{
+      try{res(typeof v==='string'?JSON.parse(v):v);}catch(e){res(v);}
+    }).withFailureHandler(rej);
+    r[fn](...args);
+  });
+}
+
+// ════════════ UTILS ════════════
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function dN(id){return (S.data.departments.find(d=>d.id===id)||{}).name||'不明';}
+function aN(id){return (S.data.auditors.find(a=>a.id===id)||{}).name||'不明';}
+function aDept(id){return (S.data.auditors.find(a=>a.id===id)||{}).deptId||'';}
+function showL(){document.getElementById('loading').classList.add('on');}
+function hideL(){document.getElementById('loading').classList.remove('on');}
+
+function toast(msg,type='ok'){
+  const el=document.createElement('div');
+  el.className='toast';
+  el.style.background=type==='err'?'#8a1b1b':'#1a472a';
+  el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+function getLastDept(auditorId){
+  const all=[...S.data.records,...S.data.results].sort((a,b)=>{
+    if(b.year!==a.year) return b.year-a.year;
+    return (b.half==='下半期'?1:0)-(a.half==='下半期'?1:0);
+  });
+  for(const r of all) if(r.auditorId===auditorId) return r.targetDeptId;
+  return null;
+}
+
+// ════════════ LOTTERY ALGORITHM ════════════
+function runAlgorithm(auds, depts, teamSize){
+  const active = auds.filter(a=>a.active&&a.deptId);
+  if(active.length < 2) return null;
+
+  const lastMap={};
+  active.forEach(a=>{const l=getLastDept(a.id);if(l)lastMap[a.id]=l;});
+
+  for(let attempt=0; attempt<25; attempt++){
+    const shuffled=[...active].sort(()=>Math.random()-.5);
+    // チーム編成
+    const teams=[];
+    for(let i=0;i<shuffled.length;i+=teamSize){
+      const sl=shuffled.slice(i,i+teamSize);
+      if(sl.length>=2) teams.push(sl);
+    }
+    // 監査先割当（バックトラック）
+    const shuffDepts=[...depts].sort(()=>Math.random()-.5);
+    const used=new Set();
+    const result=[];
+
+    function assign(ti){
+      if(ti===teams.length) return true;
+      const team=teams[ti];
+      const homeDepts=new Set(team.map(a=>a.deptId));
+      const valid=shuffDepts.filter(d=>
+        !used.has(d.id)&&
+        !homeDepts.has(d.id)&&
+        !team.some(a=>lastMap[a.id]===d.id)
+      ).sort(()=>Math.random()-.5);
+      for(const dept of valid){
+        used.add(dept.id);
+        result[ti]={teamId:'T'+(ti+1), auditorIds:team.map(a=>a.id), targetDeptId:dept.id};
+        if(assign(ti+1)) return true;
+        used.delete(dept.id);
+        result[ti]=null;
+      }
+      return false;
+    }
+    if(assign(0)) return result.filter(Boolean);
+  }
+  return null;
+}
+
+// ════════════ ADMIN RENDER ════════════
+function render(){
+  document.querySelectorAll('.nv').forEach(el=>
+    el.classList.toggle('on',el.getAttribute('data-tab')===S.tab)
+  );
+  const pages={depts:pDepts,auds:pAuds,prev:pPrev,prep:pPrep,hist:pHist};
+  document.getElementById('main').innerHTML=(pages[S.tab]||pDepts)();
+  bindListeners();
+}
+
+function pDepts(){
+  return `<div class="ptitle">部署・工場管理</div>
+  <div class="psub">監査対象となる部署・工場を登録します</div>
+  <div class="card">
+    <div class="clabel">新規登録</div>
+    <div class="row">
+      <input type="text" id="nd" placeholder="部署・工場名" style="max-width:240px;" onkeydown="if(event.key==='Enter')APP.addDept()">
+      <button class="btn btn-grn" onclick="APP.addDept()">＋ 追加</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="clabel">登録済み <span class="badge bg-gry">${S.data.departments.length}件</span></div>
+    ${S.data.departments.length===0?'<div class="empty">部署・工場が登録されていません</div>':
+      S.data.departments.map(d=>`
+      <div class="item">
+        <span>🏭</span>
+        <div class="ib"><div class="in">${esc(d.name)}</div>
+          <div class="is">${S.data.auditors.filter(a=>a.deptId===d.id).length}名所属</div></div>
+        <button class="btn btn-red" onclick="APP.delDept('${d.id}')">削除</button>
+      </div>`).join('')}
+  </div>`;
+}
+
+function pAuds(){
+  const dOpts=S.data.departments.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
+  return `<div class="ptitle">監査員管理</div>
+  <div class="psub">内部監査を担当する監査員を登録します</div>
+  ${S.data.departments.length===0?'<div class="alert aw">⚠ まず部署・工場を登録してください</div>':''}
+  <div class="card">
+    <div class="clabel">新規登録</div>
+    <div class="row">
+      <input type="text" id="na" placeholder="監査員名" style="max-width:160px;">
+      <select id="nd2" style="max-width:190px;"><option value="">所属部署を選択</option>${dOpts}</select>
+      <button class="btn btn-grn" onclick="APP.addAud()">＋ 追加</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="clabel">登録済み <span class="badge bg-gry">${S.data.auditors.length}名</span></div>
+    ${S.data.auditors.length===0?'<div class="empty">監査員が登録されていません</div>':
+      S.data.auditors.map(a=>{
+        const d=S.data.departments.find(x=>x.id===a.deptId);
+        return `<div class="item ${a.active?'':'dim'}">
+          <span>👤</span>
+          <div class="ib"><div class="in">${esc(a.name)}</div>
+            <div class="is">${d?esc(d.name):'所属なし'}</div></div>
+          <span class="badge ${a.active?'bg-grn':'bg-gry'}">${a.active?'有効':'無効'}</span>
+          <button class="btn" onclick="APP.toggleAud('${a.id}')" style="font-size:11px;padding:3px 9px;">${a.active?'無効化':'有効化'}</button>
+          <button class="btn btn-red" onclick="APP.delAud('${a.id}')">削除</button>
+        </div>`;
+      }).join('')}
+  </div>`;
+}
+
+function pPrev(){
+  const acts=S.data.auditors.filter(a=>a.active&&a.deptId);
+  return `<div class="ptitle">前回記録入力</div>
+  <div class="psub">前回のくじ引き結果を手動入力します。次回の抽選で同じ部署へ行かないよう制御します。</div>
+  <div class="card">
+    <div class="clabel">対象期間</div>
+    <div class="row">
+      <input type="number" id="py" value="${S.prevYear}" min="2000" max="2099">
+      <span style="font-size:13px;color:var(--tx2);">年</span>
+      <select id="ph" style="width:110px;">
+        <option value="上半期" ${S.prevHalf==='上半期'?'selected':''}>上半期</option>
+        <option value="下半期" ${S.prevHalf==='下半期'?'selected':''}>下半期</option>
+      </select>
+    </div>
+  </div>
+  <div class="card">
+    <div class="clabel">各監査員の前回監査先</div>
+    ${acts.length===0?'<div class="alert aw">有効な監査員（所属あり）がいません</div>':''}
+    ${acts.map(a=>{
+      const d=S.data.departments.find(x=>x.id===a.deptId);
+      const cur=S.prevMap[a.id]||'';
+      return `<div class="item">
+        <span>👤</span>
+        <div class="ib"><div class="in">${esc(a.name)}</div>
+          <div class="is">${d?esc(d.name):''}</div></div>
+        <span style="color:var(--tx3);">→</span>
+        <select data-aid="${a.id}" class="pas" style="width:170px;">
+          <option value="">監査先を選択</option>
+          ${S.data.departments.filter(x=>x.id!==a.deptId).map(x=>
+            `<option value="${x.id}" ${cur===x.id?'selected':''}>${esc(x.name)}</option>`
+          ).join('')}
+        </select>
+      </div>`;
+    }).join('')}
+    <div class="sep"></div>
+    <button class="btn btn-grn" onclick="APP.savePrev()">💾 記録を保存</button>
+  </div>`;
+}
+
+function pPrep(){
+  const A=S.lottery.assignments;
+  return `<div class="ptitle">くじ引き設定</div>
+  <div class="psub">抽選条件を設定し、内容を事前に決定します（参加者には見せないでください）</div>
+  <div class="card">
+    <div class="clabel">抽選条件</div>
+    <div class="row" style="gap:18px;flex-wrap:wrap;">
+      <div class="row">
+        <span style="font-size:12px;color:var(--tx2);">実施期間：</span>
+        <input type="number" id="ly" value="${S.lottery.year}" min="2000" max="2099">
+        <span style="font-size:12px;color:var(--tx2);">年</span>
+        <select id="lh" style="width:110px;">
+          <option value="上半期" ${S.lottery.half==='上半期'?'selected':''}>上半期</option>
+          <option value="下半期" ${S.lottery.half==='下半期'?'selected':''}>下半期</option>
+        </select>
+      </div>
+      <div class="row">
+        <span style="font-size:12px;color:var(--tx2);">チーム人数：</span>
+        <select id="ts" style="width:90px;">
+          <option value="2" ${S.lottery.teamSize===2?'selected':''}>2名</option>
+          <option value="3" ${S.lottery.teamSize===3?'selected':''}>3名</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--tx3);">
+      制約：①自部署は監査不可　②チームメンバー全員が前回行った部署は除外　③同部署員が同じ監査先へ重複しない
+    </div>
+  </div>
+  ${A ? `
+  <div class="card">
+    <div class="clabel" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>抽選結果プレビュー <span class="badge bg-grn">${A.length}チーム</span></span>
+      <div class="row" style="gap:6px;">
+        <button class="btn" onclick="APP.prepLott()" style="font-size:11px;">🔄 再抽選</button>
+        <button class="btn btn-gld" onclick="APP.startCeremony()">🎯 セレモニー開始</button>
+      </div>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>チーム</th><th>メンバー（所属）</th><th>監査先</th></tr></thead>
+      <tbody>${A.map(t=>`<tr>
+        <td class="tm th">${esc(t.teamId)}</td>
+        <td>${t.auditorIds.map(id=>`${esc(aN(id))}<span class="tm"> (${esc(dN(aDept(id)))})</span>`).join('・')}</td>
+        <td class="tb">→ ${esc(dN(t.targetDeptId))}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div style="margin-top:10px;font-size:11px;color:var(--tx3);">※ このプレビューは管理者のみ確認できます</div>
+  </div>` : `
+  <div class="card" style="text-align:center;padding:36px 20px;">
+    <div style="font-size:44px;margin-bottom:14px;">🎲</div>
+    <div style="font-size:14px;font-weight:500;margin-bottom:6px;">抽選内容を生成する</div>
+    <div style="font-size:12px;color:var(--tx3);margin-bottom:18px;">条件を設定してボタンを押してください</div>
+    <button class="btn btn-grn btn-lg" onclick="APP.prepLott()">⚡ 抽選内容を生成</button>
+  </div>`}`;
+}
+
+function pHist(){
+  // results grouping
+  const rg={},mg={};
+  S.data.results.forEach(r=>{
+    const k=`${r.year}_${r.half}`;
+    if(!rg[k])rg[k]={year:r.year,half:r.half,rows:[]};
+    rg[k].rows.push(r);
+  });
+  S.data.records.forEach(r=>{
+    const k=`${r.year}_${r.half}`;
+    if(!mg[k])mg[k]={year:r.year,half:r.half,rows:[]};
+    mg[k].rows.push(r);
+  });
+  const all=[
+    ...Object.values(rg).map(g=>({...g,type:'lottery'})),
+    ...Object.values(mg).map(g=>({...g,type:'manual'}))
+  ].sort((a,b)=>{
+    if(b.year!==a.year)return b.year-a.year;
+    return (b.half==='下半期'?1:0)-(a.half==='下半期'?1:0);
+  });
+
+  return `<div class="ptitle">結果履歴</div>
+  <div class="psub">過去の抽選・手動記録の一覧です</div>
+  ${all.length===0?'<div class="empty" style="padding:52px;">📁 記録がありません</div>':all.map(g=>{
+    const teams={};
+    g.rows.forEach(r=>{
+      const k=r.teamId||'s';
+      if(!teams[k])teams[k]={tgt:r.targetDeptId,mem:[]};
+      teams[k].mem.push(r.auditorId);
+    });
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <span style="font-family:var(--mono);font-size:15px;font-weight:700;">${g.year} / ${esc(g.half)}</span>
+          <span class="badge ${g.type==='lottery'?'bg-gld':'bg-gry'}">${g.type==='lottery'?'くじ引き':'手入力'}</span>
+        </div>
+        <div class="row" style="gap:5px;">
+          ${g.type==='lottery'?`<button class="btn btn-blu" style="font-size:11px;padding:3px 9px;" onclick="APP.exportSheet(${g.year},'${g.half}')">📊 シート出力</button>`:''}
+          <button class="btn btn-red" style="font-size:11px;padding:3px 9px;" onclick="APP.delHist(${g.year},'${g.half}','${g.type}')">削除</button>
+        </div>
+      </div>
+      <table class="tbl" style="font-size:11.5px;">
+        <thead><tr><th>チーム</th><th>監査員（所属）</th><th>監査先</th></tr></thead>
+        <tbody>${Object.entries(teams).map(([tid,t])=>
+          t.mem.map((aid,i)=>`<tr>
+            <td class="tm">${i===0?esc(tid):''}</td>
+            <td>${esc(aN(aid))} <span class="tm">(${esc(dN(aDept(aid)))})</span></td>
+            <td class="tb">${i===0?'→ '+esc(dN(t.tgt)):''}</td>
+          </tr>`).join('')
+        ).join('')}</tbody>
+      </table>
+    </div>`;
+  }).join('')}`;
+}
+
+function bindListeners(){
+  const b=(id,ev,fn)=>{const el=document.getElementById(id);if(el)el.addEventListener(ev,fn);};
+  b('py','change',e=>{S.prevYear=parseInt(e.target.value)||S.prevYear;});
+  b('ph','change',e=>{S.prevHalf=e.target.value;});
+  b('ly','change',e=>{S.lottery.year=parseInt(e.target.value)||S.lottery.year;});
+  b('lh','change',e=>{S.lottery.half=e.target.value;});
+  b('ts','change',e=>{S.lottery.teamSize=parseInt(e.target.value);});
+  document.querySelectorAll('.pas').forEach(s=>{
+    s.addEventListener('change',e=>{S.prevMap[e.target.getAttribute('data-aid')]=e.target.value;});
+  });
+}
+
+// ════════════ CEREMONY ════════════
+function renderCer(){
+  const A=S.lottery.assignments||[];
+  document.getElementById('cperiod').textContent=`${S.lottery.year}年 ${S.lottery.half}`;
+  document.getElementById('cgrid').innerHTML=A.map(team=>{
+    const done=S.lottery.revealed.has(team.teamId);
+    return `<div class="lcard ${done?'done':'waiting'}" id="lc-${team.teamId}">
+      <div class="lcardtop">
+        <div class="lcdept">${esc(dN(team.targetDeptId))}</div>
+        <div class="lcstat">${done?'✓ 抽選済み':'待機中...'}</div>
+      </div>
+      <div class="lcardbody" id="lb-${team.teamId}">
+        ${done ? rvContent(team) : `<button class="dbtn" onclick="APP.draw('${team.teamId}')">くじを引く 🎯</button>`}
+      </div>
+    </div>`;
+  }).join('');
+  updateCerStatus();
+}
+
+function rvContent(team){
+  return `<div class="rv">
+    <div class="rvtgt">${esc(dN(team.targetDeptId))}</div>
+    <div class="rvlbl">AUDIT TEAM</div>
+    <div class="rvteam">${team.auditorIds.map(id=>
+      `<div class="rvmem">${esc(aN(id))} <span class="rvmdept">${esc(dN(aDept(id)))}</span></div>`
+    ).join('')}</div>
+  </div>`;
+}
+
+function updateCerStatus(){
+  const tot=(S.lottery.assignments||[]).length;
+  const done=S.lottery.revealed.size;
+  document.getElementById('cprog').textContent=`${done} / ${tot} 部署 抽選完了`;
+  if(done===tot&&tot>0) document.getElementById('csavebtn').style.display='inline-flex';
+}
+
+// ════════════ SLOT MACHINE ════════════
+async function startSlot(teamId){
+  S.curTeamId=teamId;
+  const team=S.lottery.assignments.find(t=>t.teamId===teamId);
+  if(!team) return;
+
+  const allAudNames=S.data.auditors.filter(a=>a.active).map(a=>a.name);
+
+  // Modal reset
+  const modal=document.getElementById('slot');
+  document.getElementById('sforwho').textContent=`監査先：${dN(team.targetDeptId)}`;
+  const stxt=document.getElementById('stext');
+  stxt.textContent='？？？';stxt.classList.remove('final');
+  document.getElementById('ssub').textContent='抽選中...';
+  document.getElementById('steam').style.display='none';
+  document.getElementById('sconfirm').style.display='none';
+  document.getElementById('smembers').innerHTML='';
+  modal.classList.add('on');
+
+  // Slot animation – cycle through auditor names
+  await new Promise(res=>{
+    const steps=30; let step=0;
+    function tick(){
+      step++;
+      const p=step/steps;
+      const delay=35+Math.pow(p,2.8)*580;
+      if(step<steps){
+        stxt.textContent=allAudNames[Math.floor(Math.random()*allAudNames.length)]||'---';
+        setTimeout(tick,delay);
+      } else {
+        // Show the team members' names cycling, then settle
+        const memberNames=team.auditorIds.map(id=>aN(id));
+        stxt.textContent=memberNames.join(' ・ ');
+        stxt.classList.add('final');
+        document.getElementById('ssub').textContent='チーム決定！';
+        res();
+      }
+    }
+    tick();
+  });
+
+  // Show team members one by one
+  await new Promise(r=>setTimeout(r,400));
+  document.getElementById('steam').style.display='block';
+  const mc=document.getElementById('smembers');
+  for(const audId of team.auditorIds){
+    const el=document.createElement('div');
+    el.className='smem';
+    el.innerHTML=`<span class="smname">${esc(aN(audId))}</span><span class="smdept">${esc(dN(aDept(audId)))}</span>`;
+    mc.appendChild(el);
+    await new Promise(r=>setTimeout(r,60));
+    el.classList.add('on');
+    await new Promise(r=>setTimeout(r,320));
+  }
+
+  launchConfetti();
+  await new Promise(r=>setTimeout(r,500));
+  document.getElementById('sconfirm').style.display='block';
+}
+
+// ════════════ CONFETTI ════════════
+function launchConfetti(){
+  const cv=document.getElementById('confetti');
+  const ctx=cv.getContext('2d');
+  cv.width=window.innerWidth; cv.height=window.innerHeight;
+  const COLORS=['#c0a840','#60a870','#b0d8b0','#e8d870','#ffffff','#f0c860'];
+  const ps=Array.from({length:90},()=>({
+    x:Math.random()*cv.width,y:-12,
+    vy:1.8+Math.random()*4,vx:(Math.random()-.5)*3,
+    sz:4+Math.random()*9,rot:Math.random()*360,rs:(Math.random()-.5)*9,
+    color:COLORS[Math.floor(Math.random()*COLORS.length)],
+    shape:Math.random()>.5?'rect':'circle',
+  }));
+  let fr=0;
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ps.forEach(p=>{
+      p.y+=p.vy;p.x+=p.vx;p.rot+=p.rs;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot*Math.PI/180);
+      ctx.fillStyle=p.color;
+      if(p.shape==='rect') ctx.fillRect(-p.sz/2,-p.sz/4,p.sz,p.sz*.45);
+      else{ctx.beginPath();ctx.arc(0,0,p.sz/2,0,Math.PI*2);ctx.fill();}
+      ctx.restore();
+    });
+    fr++;
+    if(fr<130) requestAnimationFrame(draw);
+    else ctx.clearRect(0,0,cv.width,cv.height);
+  }
+  draw();
+}
+
+// ════════════ APP ACTIONS ════════════
+const APP = {
+  tab(t){ S.tab=t; render(); },
+
+  async init(){
+    showL();
+    try{
+      const d=await gas('getAllData');
+      if(d.ok){
+        S.data.departments=d.departments||[];
+        S.data.auditors=d.auditors||[];
+        S.data.records=d.records||[];
+        S.data.results=d.results||[];
+      }
+    }catch(e){console.error(e);}
+    hideL(); render();
+  },
+
+  addDept(){
+    const el=document.getElementById('nd'); if(!el) return;
+    const name=el.value.trim();
+    if(!name) return;
+    if(S.data.departments.find(d=>d.name===name)){toast('同じ名前が存在します','err');return;}
+    S.data.departments.push({id:uid(),name});
+    el.value='';
+    showL();
+    gas('saveDepartments',JSON.stringify(S.data.departments))
+      .then(()=>{hideL();render();}).catch(()=>{hideL();toast('保存エラー','err');});
+  },
+
+  delDept(id){
+    if(!confirm('削除しますか？関連する監査員の所属が解除されます。')) return;
+    S.data.departments=S.data.departments.filter(d=>d.id!==id);
+    S.data.auditors=S.data.auditors.map(a=>a.deptId===id?{...a,deptId:''}:a);
+    showL();
+    Promise.all([gas('saveDepartments',JSON.stringify(S.data.departments)),gas('saveAuditors',JSON.stringify(S.data.auditors))])
+      .then(()=>{hideL();render();}).catch(()=>{hideL();toast('エラー','err');});
+  },
+
+  addAud(){
+    const na=document.getElementById('na'),nd=document.getElementById('nd2');
+    const name=(na?.value||'').trim(),deptId=nd?.value||'';
+    if(!name||!deptId){toast('名前と所属部署を入力してください','err');return;}
+    S.data.auditors.push({id:uid(),name,deptId,active:true});
+    if(na)na.value='';
+    showL();
+    gas('saveAuditors',JSON.stringify(S.data.auditors))
+      .then(()=>{hideL();render();}).catch(()=>{hideL();toast('エラー','err');});
+  },
+
+  toggleAud(id){
+    S.data.auditors=S.data.auditors.map(a=>a.id===id?{...a,active:!a.active}:a);
+    showL();
+    gas('saveAuditors',JSON.stringify(S.data.auditors))
+      .then(()=>{hideL();render();}).catch(()=>{hideL();toast('エラー','err');});
+  },
+
+  delAud(id){
+    if(!confirm('削除しますか？')) return;
+    S.data.auditors=S.data.auditors.filter(a=>a.id!==id);
+    showL();
+    gas('saveAuditors',JSON.stringify(S.data.auditors))
+      .then(()=>{hideL();render();}).catch(()=>{hideL();toast('エラー','err');});
+  },
+
+  savePrev(){
+    const year=parseInt(document.getElementById('py')?.value)||S.prevYear;
+    const half=document.getElementById('ph')?.value||S.prevHalf;
+    const rows=[];
+    document.querySelectorAll('.pas').forEach(s=>{
+      const aid=s.getAttribute('data-aid'),deptId=s.value;
+      if(deptId) rows.push({id:uid(),year,half,auditorId:aid,targetDeptId:deptId,teamId:'M'+uid().slice(0,4)});
+    });
+    if(rows.length===0){toast('監査先を入力してください','err');return;}
+    S.data.records=S.data.records.filter(r=>!(String(r.year)===String(year)&&r.half===half));
+    S.data.records.push(...rows);
+    S.prevMap={};
+    showL();
+    gas('saveRecords',JSON.stringify(S.data.records))
+      .then(()=>{hideL();toast(`${year}年${half}の記録を保存しました`);render();})
+      .catch(()=>{hideL();toast('保存エラー','err');});
+  },
+
+  prepLott(){
+    const year=parseInt(document.getElementById('ly')?.value)||S.lottery.year;
+    const half=document.getElementById('lh')?.value||S.lottery.half;
+    const ts=parseInt(document.getElementById('ts')?.value)||S.lottery.teamSize;
+    S.lottery.year=year;S.lottery.half=half;S.lottery.teamSize=ts;
+    const acts=S.data.auditors.filter(a=>a.active&&a.deptId);
+    if(acts.length<2){toast('有効な監査員が2名以上必要です','err');return;}
+    if(S.data.departments.length<2){toast('部署が2つ以上必要です','err');return;}
+    const result=runAlgorithm(acts,S.data.departments,ts);
+    if(!result){toast('条件を満たす割当が見つかりませんでした。前回記録・設定を確認してください','err');return;}
+    S.lottery.assignments=result;
+    S.lottery.revealed=new Set();
+    render();
+  },
+
+  startCeremony(){
+    if(!S.lottery.assignments||!S.lottery.assignments.length){
+      alert('先に「くじ引き設定」で抽選内容を生成してください');
+      S.tab='prep';render();return;
+    }
+    document.getElementById('admin-view').style.display='none';
+    document.getElementById('cer').classList.add('on');
+    renderCer();
+  },
+
+  exitCer(){
+    document.getElementById('cer').classList.remove('on');
+    document.getElementById('admin-view').style.display='flex';
+    render();
+  },
+
+  async draw(teamId){
+    if(S.lottery.revealed.has(teamId)) return;
+    await startSlot(teamId);
+  },
+
+  confirmReveal(){
+    const teamId=S.curTeamId;
+    document.getElementById('slot').classList.remove('on');
+    if(teamId){
+      S.lottery.revealed.add(teamId);
+      const card=document.getElementById(`lc-${teamId}`);
+      if(card){
+        const team=S.lottery.assignments.find(t=>t.teamId===teamId);
+        card.className='lcard done';
+        card.querySelector('.lcstat').textContent='✓ 抽選済み';
+        document.getElementById(`lb-${teamId}`).innerHTML=rvContent(team);
+      }
+      updateCerStatus();
+    }
+    S.curTeamId=null;
+  },
+
+  async saveCer(){
+    if(!confirm('結果をスプレッドシートに保存しますか？')) return;
+    const A=S.lottery.assignments,ts=new Date().toISOString(),rows=[];
+    A.forEach(team=>{
+      team.auditorIds.forEach(aid=>{
+        rows.push({id:uid(),year:S.lottery.year,half:S.lottery.half,auditorId:aid,targetDeptId:team.targetDeptId,teamId:team.teamId,createdAt:ts});
+      });
+    });
+    S.data.results=S.data.results.filter(r=>!(String(r.year)===String(S.lottery.year)&&r.half===S.lottery.half));
+    S.data.results.push(...rows);
+    showL();
+    try{
+      await gas('saveResults',JSON.stringify(S.data.results));
+      hideL();toast('保存しました！');
+      document.getElementById('csavebtn').style.display='none';
+    }catch(e){hideL();toast('保存エラー','err');}
+  },
+
+  async exportSheet(year,half){
+    showL();
+    try{
+      const r=await gas('exportResultSheet',year,half);
+      hideL();
+      if(r.ok) toast(`シート「${r.sheetName}」を作成しました`);
+      else toast('エラー: '+r.error,'err');
+    }catch(e){hideL();toast('エラー','err');}
+  },
+
+  async delHist(year,half,type){
+    if(!confirm(`${year}年${half}の記録を削除しますか？`)) return;
+    if(type==='lottery'){
+      S.data.results=S.data.results.filter(r=>!(String(r.year)===String(year)&&r.half===half));
+      await gas('saveResults',JSON.stringify(S.data.results));
+    } else {
+      S.data.records=S.data.records.filter(r=>!(String(r.year)===String(year)&&r.half===half));
+      await gas('saveRecords',JSON.stringify(S.data.records));
+    }
+    render();
+  }
+};
+
+APP.init();
+</script>
+</body>
+</html>
